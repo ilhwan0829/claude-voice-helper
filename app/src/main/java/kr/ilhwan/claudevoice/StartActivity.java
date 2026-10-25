@@ -8,7 +8,7 @@ public class StartActivity extends Activity {
     @Override
     protected void onCreate(Bundle b) {
         super.onCreate(b);
-        Launcher.run(this, ClaudeAutomationService.MODE_START);
+        Launcher.run(this, ClaudeAutomationService.MODE_START, true);
         finish();
     }
 }

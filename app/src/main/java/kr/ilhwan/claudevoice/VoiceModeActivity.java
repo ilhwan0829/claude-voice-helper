@@ -8,7 +8,7 @@ public class VoiceModeActivity extends Activity {
     @Override
     protected void onCreate(Bundle b) {
         super.onCreate(b);
-        Launcher.run(this, ClaudeAutomationService.MODE_VOICE);
+        Launcher.run(this, ClaudeAutomationService.MODE_VOICE, true);
         finish();
     }
 }

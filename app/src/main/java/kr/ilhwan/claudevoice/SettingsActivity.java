@@ -71,7 +71,8 @@ public class SettingsActivity extends Activity {
         lastLog = mono();
         col.addView(lastLog);
         col.addView(heading("진단 기록"));
-        col.addView(button("진단 기록 복사", v -> copy(lastDump.getText().toString())));
+        col.addView(button("실행 결과 + 진단 기록 함께 복사", v ->
+                copy(version() + "\n[실행 결과]\n" + lastLog.getText() + "\n[진단 기록]\n" + lastDump.getText())));
         lastDump = mono();
         col.addView(lastDump);
 

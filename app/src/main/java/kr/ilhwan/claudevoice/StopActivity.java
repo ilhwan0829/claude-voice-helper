@@ -8,7 +8,7 @@ public class StopActivity extends Activity {
     @Override
     protected void onCreate(Bundle b) {
         super.onCreate(b);
-        Launcher.run(this, ClaudeAutomationService.MODE_STOP);
+        Launcher.run(this, ClaudeAutomationService.MODE_STOP, true);
         finish();
     }
 }

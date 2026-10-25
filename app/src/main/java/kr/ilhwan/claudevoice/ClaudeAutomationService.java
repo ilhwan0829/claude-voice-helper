@@ -77,6 +77,7 @@ public class ClaudeAutomationService extends AccessibilityService {
     private boolean menuTried;
     private int scrolls;
     private boolean viaLink;
+    private boolean bixby;
     private boolean wantVoiceMode;  // true면 음파 버튼, false면 마이크 버튼
     private final StringBuilder log = new StringBuilder();
 
@@ -115,7 +116,7 @@ public class ClaudeAutomationService extends AccessibilityService {
 
     private Set<String> targetPkgs = new HashSet<>(Collections.singleton(Prefs.CLAUDE_PKG));
 
-    void begin(String newMode, boolean openedByLink, Target target) {
+    void begin(String newMode, boolean openedByLink, Target target, boolean fromBixby) {
         targetPkgs = target.windowPackages();
         handler.removeCallbacksAndMessages(null);
         mode = newMode;
@@ -123,14 +124,16 @@ public class ClaudeAutomationService extends AccessibilityService {
         wantVoiceMode = MODE_VOICE.equals(newMode);
         startedAt = SystemClock.uptimeMillis();
         // Claude 앱이 뜰 시간. 진단은 사용자가 원하는 화면으로 옮길 수 있게 4초 기다린다.
-        waitUntil = startedAt + (MODE_DUMP.equals(newMode) ? 4000 : 1200);
+        // 빅스비로 실행하면 빅스비 창이 닫히고 마이크를 놓을 때까지 3초 기다린다.
+        waitUntil = startedAt + (MODE_DUMP.equals(newMode) ? 4000 : fromBixby ? 3000 : 1200);
+        bixby = fromBixby;
         step = openedByLink ? STEP_PRESS_VOICE : STEP_FIND_CHAT;
         menuTried = false;
         scrolls = 0;
         voiceStepSince = 0;
         stopClicks = 0;
         log.setLength(0);
-        note("시작: " + newMode + " / " + target.describe() + (openedByLink ? " / 대화 링크로 열기" : ""));
+        note("시작: " + newMode + (fromBixby ? " (빅스비)" : " (테스트)") + " / " + target.describe() + (openedByLink ? " / 대화 링크로 열기" : ""));
         handler.postDelayed(this::tick, TICK_MS);
     }
 
@@ -222,6 +225,12 @@ public class ClaudeAutomationService extends AccessibilityService {
         }
 
         // STEP_PRESS_VOICE
+        if (bixby && voiceStepSince == 0) {
+            voiceStepSince = now;
+            waitUntil = now + 1000;   // 채팅 화면이 다 그려질 때까지 한 번 더 대기
+            note("빅스비 실행: 1초 추가 대기");
+            return;
+        }
         AccessibilityNodeInfo voice = findVoice(nodes);
         if (voice == null && stepStartedLongAgo(now)) {
             // 이름으로 못 찾으면 위치로: 입력창 아래 줄 왼쪽부터 ＋(1) 마이크(2) 음파(3)

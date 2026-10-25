@@ -11,6 +11,11 @@ final class Launcher {
     private Launcher() {}
 
     static void run(Context c, String mode) {
+        run(c, mode, false);
+    }
+
+    /** fromBixby: 빅스비·아이콘으로 실행. 빅스비가 마이크를 놓고 화면이 다 뜰 때까지 더 기다린다. */
+    static void run(Context c, String mode, boolean fromBixby) {
         ClaudeAutomationService svc = ClaudeAutomationService.instance;
         if (svc == null) {
             Toast.makeText(c, "접근성에서 '클로드 도우미'를 켜 주세요.", Toast.LENGTH_LONG).show();
@@ -34,7 +39,7 @@ final class Launcher {
             Toast.makeText(c, "Claude를 열지 못했어요.", Toast.LENGTH_LONG).show();
             return;
         }
-        svc.begin(mode, openedByLink, t);
+        svc.begin(mode, openedByLink, t, fromBixby);
     }
 
     /** 설정에 대화 링크가 있으면 그 대화로 바로 연다. */
