@@ -258,7 +258,8 @@ public class ClaudeAutomationService extends AccessibilityService {
                 waitUntil = now + 2500;
                 return;
             }
-            if (viaLink && relinked && waited > 4000) {
+            // 창이 닫혀 있다 켜진 경우 claude.ai가 다 뜨는 데 오래 걸리므로 8초까지 기다린다.
+            if (viaLink && relinked && waited > 8000) {
                 viaLink = false;
                 step = STEP_FIND_CHAT;
                 menuTried = false;
