@@ -131,6 +131,7 @@ public class ClaudeAutomationService extends AccessibilityService {
         menuTried = false;
         scrolls = 0;
         voiceStepSince = 0;
+        loadingNoted = false;
         stopClicks = 0;
         log.setLength(0);
         note("시작: " + newMode + (fromBixby ? " (빅스비)" : " (테스트)") + " / " + target.describe() + (openedByLink ? " / 대화 링크로 열기" : ""));
@@ -229,6 +230,12 @@ public class ClaudeAutomationService extends AccessibilityService {
             voiceStepSince = now;
             waitUntil = now + 1000;   // 채팅 화면이 다 그려질 때까지 한 번 더 대기
             note("빅스비 실행: 1초 추가 대기");
+            return;
+        }
+        // 대화가 아직 불러오는 중이면 버튼 이름이 비어 있으므로 기다린다.
+        if (isLoading(nodes) && now - startedAt < START_TIMEOUT_MS - 3000) {
+            if (!loadingNoted) { note("대화 불러오는 중 → 대기"); loadingNoted = true; }
+            voiceStepSince = 0;
             return;
         }
         AccessibilityNodeInfo voice = findVoice(nodes);
@@ -431,11 +438,23 @@ public class ClaudeAutomationService extends AccessibilityService {
     }
 
     private long voiceStepSince;
+    private boolean loadingNoted;
+
+    private static final String[] LOADING_WORDS = {"불러오는 중", "로딩", "loading"};
+
+    private static boolean isLoading(List<AccessibilityNodeInfo> nodes) {
+        for (AccessibilityNodeInfo n : nodes) {
+            if (!n.isVisibleToUser()) continue;
+            String l = label(n).toLowerCase(Locale.ROOT);
+            if (!l.isEmpty() && l.length() < 40 && containsAny(l, LOADING_WORDS)) return true;
+        }
+        return false;
+    }
 
     /** 음성 버튼 단계에 들어온 지 2.5초가 지났는지. */
     private boolean stepStartedLongAgo(long now) {
         if (voiceStepSince == 0) voiceStepSince = now;
-        return now - voiceStepSince > 2500;
+        return now - voiceStepSince > 4000;
     }
 
     /** 화면 아래 25%·왼쪽 60% 안의 버튼들을 왼쪽부터 세어 index번째(0부터)를 고른다. */
