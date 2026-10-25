@@ -6,7 +6,7 @@ import android.net.Uri;
 import android.provider.Settings;
 import android.widget.Toast;
 
-/** Claude 앱을 앞으로 가져오고 접근성 서비스에 할 일을 맡긴다. */
+/** Claude(크롬 설치 앱 또는 공식 앱)를 앞으로 가져오고 접근성 서비스에 할 일을 맡긴다. */
 final class Launcher {
     private Launcher() {}
 
@@ -19,24 +19,31 @@ final class Launcher {
             c.startActivity(i);
             return;
         }
+        Target t = Target.resolve(c);
+        if (t == null) {
+            Toast.makeText(c, "Claude를 찾지 못했어요. 크롬에서 claude.ai를 '앱 설치'했는지 확인해 주세요.",
+                    Toast.LENGTH_LONG).show();
+            return;
+        }
         boolean openedByLink = false;
         if (ClaudeAutomationService.MODE_START.equals(mode)
                 || ClaudeAutomationService.MODE_VOICE.equals(mode)) {
-            openedByLink = openChatLink(c);
+            openedByLink = openChatLink(c, t);
         }
-        if (!openedByLink && !openClaude(c)) {
-            Toast.makeText(c, "Claude 앱이 설치되어 있지 않습니다.", Toast.LENGTH_LONG).show();
+        if (!openedByLink && !open(c, t)) {
+            Toast.makeText(c, "Claude를 열지 못했어요.", Toast.LENGTH_LONG).show();
             return;
         }
-        svc.begin(mode, openedByLink);
+        svc.begin(mode, openedByLink, t);
     }
 
     /** 설정에 대화 링크가 있으면 그 대화로 바로 연다. */
-    private static boolean openChatLink(Context c) {
+    private static boolean openChatLink(Context c, Target t) {
         String url = Prefs.get(c, Prefs.KEY_URL, "");
+        if (url.startsWith("claude.ai/")) url = "https://" + url;
         if (!url.startsWith("https://claude.ai/")) return false;
         Intent i = new Intent(Intent.ACTION_VIEW, Uri.parse(url));
-        i.setPackage(Prefs.CLAUDE_PKG);
+        i.setPackage(t.pkg);
         i.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
         if (i.resolveActivity(c.getPackageManager()) == null) return false;
         try {
@@ -47,8 +54,8 @@ final class Launcher {
         }
     }
 
-    static boolean openClaude(Context c) {
-        Intent i = c.getPackageManager().getLaunchIntentForPackage(Prefs.CLAUDE_PKG);
+    static boolean open(Context c, Target t) {
+        Intent i = c.getPackageManager().getLaunchIntentForPackage(t.pkg);
         if (i == null) return false;
         i.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_RESET_TASK_IF_NEEDED);
         c.startActivity(i);

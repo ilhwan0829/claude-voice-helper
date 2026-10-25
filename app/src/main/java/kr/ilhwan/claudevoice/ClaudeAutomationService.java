@@ -15,6 +15,9 @@ import android.widget.Toast;
 
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
+import java.util.Collections;
+import java.util.HashSet;
+import java.util.Set;
 import java.util.Date;
 import java.util.List;
 import java.util.Locale;
@@ -110,7 +113,10 @@ public class ClaudeAutomationService extends AccessibilityService {
 
     // ---------------------------------------------------------------- 작업 시작
 
-    void begin(String newMode, boolean openedByLink) {
+    private Set<String> targetPkgs = new HashSet<>(Collections.singleton(Prefs.CLAUDE_PKG));
+
+    void begin(String newMode, boolean openedByLink, Target target) {
+        targetPkgs = target.windowPackages();
         handler.removeCallbacksAndMessages(null);
         mode = newMode;
         viaLink = openedByLink;
@@ -124,7 +130,7 @@ public class ClaudeAutomationService extends AccessibilityService {
         voiceStepSince = 0;
         stopClicks = 0;
         log.setLength(0);
-        note("시작: " + newMode + (openedByLink ? " (대화 링크로 열기)" : ""));
+        note("시작: " + newMode + " / " + target.describe() + (openedByLink ? " / 대화 링크로 열기" : ""));
         handler.postDelayed(this::tick, TICK_MS);
     }
 
@@ -274,27 +280,26 @@ public class ClaudeAutomationService extends AccessibilityService {
         return t.isEmpty() ? Prefs.DEFAULT_TITLE : t;
     }
 
-    /** Claude 앱 창(음성 모드 오버레이 포함)의 모든 노드. */
+    /** Claude 창(크롬 설치 앱이면 크롬이 그리는 웹 화면, 음성 오버레이 포함)의 모든 노드. */
     private List<AccessibilityNodeInfo> claudeNodes() {
         List<AccessibilityNodeInfo> out = new ArrayList<>();
         List<AccessibilityWindowInfo> windows = getWindows();
         if (windows != null) {
             for (AccessibilityWindowInfo w : windows) {
                 AccessibilityNodeInfo root = w.getRoot();
-                if (root != null && root.getPackageName() != null
-                        && Prefs.CLAUDE_PKG.contentEquals(root.getPackageName())) {
-                    collect(root, out, 0);
-                }
+                if (isTarget(root)) collect(root, out, 0);
             }
         }
         if (out.isEmpty()) {
             AccessibilityNodeInfo root = getRootInActiveWindow();
-            if (root != null && root.getPackageName() != null
-                    && Prefs.CLAUDE_PKG.contentEquals(root.getPackageName())) {
-                collect(root, out, 0);
-            }
+            if (isTarget(root)) collect(root, out, 0);
         }
         return out;
+    }
+
+    private boolean isTarget(AccessibilityNodeInfo root) {
+        return root != null && root.getPackageName() != null
+                && targetPkgs.contains(root.getPackageName().toString());
     }
 
     private void collect(AccessibilityNodeInfo n, List<AccessibilityNodeInfo> out, int depth) {
@@ -453,7 +458,7 @@ public class ClaudeAutomationService extends AccessibilityService {
             n.getBoundsInScreen(r);
             sb.append(n.isClickable() ? "[버튼] " : "       ")
               .append('"').append(l.length() > 50 ? l.substring(0, 50) + "…" : l).append('"');
-            if (id != null) sb.append("  id=").append(id.replace(Prefs.CLAUDE_PKG + ":id/", ""));
+            if (id != null) sb.append("  id=").append(id.substring(id.indexOf('/') + 1));
             sb.append("  (").append(r.centerX()).append(',').append(r.centerY()).append(")\n");
             if (sb.length() > 15000) break;
         }

@@ -24,6 +24,7 @@ public class SettingsActivity extends Activity {
     private TextView status, lastLog, lastDump;
     private EditText title, url, voiceKw, endKw;
     private CheckBox goHome;
+    private TextView target;
 
     @Override
     protected void onCreate(Bundle b) {
@@ -45,7 +46,9 @@ public class SettingsActivity extends Activity {
 
         col.addView(heading("대화 설정"));
         title = field(col, "대화 제목", Prefs.get(this, Prefs.KEY_TITLE, Prefs.DEFAULT_TITLE), false);
-        url = field(col, "(선택) 대화 링크 — claude.ai/chat/… 주소를 붙여 넣으면 목록을 찾지 않고 바로 엽니다",
+        target = body("");
+        col.addView(target);
+        url = field(col, "대화 링크 (크롬 설치 앱이면 꼭 입력) — 크롬에서 영어공부 대화를 열고 주소창의 claude.ai/chat/… 주소를 복사해 붙여 넣기",
                 Prefs.get(this, Prefs.KEY_URL, ""), true);
         voiceKw = field(col, "(선택) 음성 버튼 이름 — 자동으로 못 찾을 때만, 진단 기록의 이름을 그대로 입력",
                 Prefs.get(this, Prefs.KEY_VOICE_KW, ""), false);
@@ -83,6 +86,8 @@ public class SettingsActivity extends Activity {
         boolean on = ClaudeAutomationService.instance != null;
         status.setText(on ? "● 접근성 서비스 켜짐" : "○ 접근성 서비스 꺼짐 — 아래 버튼에서 '클로드 도우미'를 켜 주세요");
         status.setTextColor(on ? 0xFF2E7D4F : 0xFFB3261E);
+        Target t = Target.resolve(this);
+        target.setText(t == null ? "대상: Claude를 찾지 못함 (크롬에서 claude.ai 앱 설치 필요)" : "대상: " + t.describe());
         lastLog.setText(Prefs.get(this, Prefs.KEY_LAST_LOG, "(아직 없음)"));
         lastDump.setText(Prefs.get(this, Prefs.KEY_LAST_DUMP, "(아직 없음)"));
     }

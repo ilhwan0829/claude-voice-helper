@@ -4,6 +4,16 @@
     <!-- Claude 앱을 찾아서 실행하기 위해 필요 (Android 11+ 패키지 가시성) -->
     <queries>
         <package android:name="com.anthropic.claude" />
+        <package android:name="com.android.chrome" />
+        <!-- 크롬에서 설치한 Claude 웹앱(org.chromium.webapk.…)을 찾기 위해 -->
+        <intent>
+            <action android:name="android.intent.action.MAIN" />
+            <category android:name="android.intent.category.LAUNCHER" />
+        </intent>
+        <intent>
+            <action android:name="android.intent.action.VIEW" />
+            <data android:scheme="https" android:host="claude.ai" />
+        </intent>
     </queries>
 
     <application
