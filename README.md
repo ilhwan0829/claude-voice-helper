@@ -9,7 +9,7 @@
 | "공부 끝 열어줘" | 받아쓰기·음성 대화 모두 끄고 홈으로 |
 
 ## APK 받기
-Actions 탭 → 가장 최근 "Build APK" 실행 → 아래 Artifacts의 `claude-voice-helper-apk` 다운로드 → 압축을 풀어 `app-debug.apk` 설치.
+폰에서 https://github.com/ilhwan0829/claude-voice-helper/releases/latest 에 들어가 `claude-helper.apk` 를 눌러 내려받아 설치.
 
 ## 처음 설정
 1. 설정 → 접근성 → 설치된 앱 → 클로드 도우미 켜기

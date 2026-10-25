@@ -2,6 +2,8 @@ name: Build APK
 on:
   push:
   workflow_dispatch:
+permissions:
+  contents: write
 jobs:
   build:
     runs-on: ubuntu-latest
@@ -15,7 +17,16 @@ jobs:
         with:
           gradle-version: "8.7"
       - run: gradle assembleDebug
+      - run: cp app/build/outputs/apk/debug/app-debug.apk claude-helper.apk
       - uses: actions/upload-artifact@v4
         with:
           name: claude-voice-helper-apk
-          path: app/build/outputs/apk/debug/app-debug.apk
+          path: claude-helper.apk
+      # 폰에서 바로 받을 수 있게 '최신' 릴리스에 APK를 올린다.
+      - uses: softprops/action-gh-release@v2
+        with:
+          tag_name: latest
+          name: 클로드 도우미 최신 버전
+          body: 폰에서 claude-helper.apk 를 눌러 내려받아 설치하세요.
+          files: claude-helper.apk
+          make_latest: true
