@@ -237,7 +237,9 @@ public class ClaudeAutomationService extends AccessibilityService {
             voice = bottomLeftButton(nodes, wantVoiceMode ? 2 : 1);
             if (voice != null) note("이름 대신 위치로 찾음(왼쪽 아래 " + (wantVoiceMode ? "세" : "두") + " 번째)");
         }
-        if (voice != null && click(voice)) {
+        if (voice != null) saveDump();   // 무엇을 눌렀는지 항상 기록(진단용)
+        if (voice != null && (wantVoiceMode ? tap(voice) : click(voice))) {
+            note("누른 위치: " + center(voice));
             finishJob(true, (wantVoiceMode ? "음파 버튼 누름: " : "마이크 버튼 누름: ") + label(voice));
             return;
         }
@@ -342,9 +344,52 @@ public class ClaudeAutomationService extends AccessibilityService {
         if (!custom.isEmpty() && !wantVoiceMode) {
             return findAny(nodes, new String[]{custom.toLowerCase(Locale.ROOT)}, null, true);
         }
-        return wantVoiceMode
-                ? findAny(nodes, VOICEMODE_KW, VOICEMODE_EXCLUDE, true)
-                : findAny(nodes, VOICE_KW, VOICE_EXCLUDE, true);
+        if (!wantVoiceMode) return findAny(nodes, VOICE_KW, VOICE_EXCLUDE, true);
+        // 음파 버튼 = 마이크 버튼 바로 오른쪽 버튼(같은 줄). 이름보다 위치를 먼저 본다.
+        AccessibilityNodeInfo mic = findAny(nodes, VOICE_KW, VOICE_EXCLUDE, true);
+        if (mic != null) {
+            AccessibilityNodeInfo right = rightNeighbor(nodes, clickableOf(mic));
+            if (right != null) return right;
+        }
+        // 마이크를 못 찾으면 이름으로: 옵션(⌄)·설정 버튼은 제외
+        for (String kw : VOICEMODE_KW) {
+            for (AccessibilityNodeInfo n : nodes) {
+                if (!n.isVisibleToUser() || n.isEditable()) continue;
+                String l = label(n).toLowerCase(Locale.ROOT);
+                if (l.isEmpty() || l.length() > 60 || !matches(l, kw)) continue;
+                if (containsAny(l, VOICEMODE_EXCLUDE) || containsAny(l, OPTION_WORDS)) continue;
+                if (clickableOf(n) != null) return n;
+            }
+        }
+        return null;
+    }
+
+    private static final String[] OPTION_WORDS = {
+            "option", "setting", "select", "choose", "more", "menu", "dropdown", "expand",
+            "옵션", "설정", "선택", "더보기", "메뉴", "펼치기", "목소리"
+    };
+
+    /** 기준 버튼과 같은 줄에서 오른쪽으로 가장 가까운 버튼. */
+    private AccessibilityNodeInfo rightNeighbor(List<AccessibilityNodeInfo> nodes, AccessibilityNodeInfo base) {
+        if (base == null) return null;
+        Rect b = new Rect();
+        base.getBoundsInScreen(b);
+        DisplayMetrics dm = getResources().getDisplayMetrics();
+        AccessibilityNodeInfo best = null;
+        int bestDx = Integer.MAX_VALUE;
+        Rect r = new Rect();
+        for (AccessibilityNodeInfo n : nodes) {
+            if (!n.isVisibleToUser() || !n.isClickable() || n.isEditable() || n.equals(base)) continue;
+            n.getBoundsInScreen(r);
+            if (r.width() > dm.widthPixels * 0.2f) continue;
+            if (Math.abs(r.centerY() - b.centerY()) > b.height()) continue;
+            int dx = r.centerX() - b.centerX();
+            if (dx <= b.width() / 3 || dx >= bestDx) continue;
+            if (r.contains(b) || b.contains(r)) continue;
+            best = n;
+            bestDx = dx;
+        }
+        return best;
     }
 
     /** 후보 단어 순서대로, 화면에 보이는 버튼 중 이름이 맞는 것을 찾는다. */
@@ -428,6 +473,24 @@ public class ClaudeAutomationService extends AccessibilityService {
     }
 
     // ---------------------------------------------------------------- 동작
+
+    /** 실제 손가락 터치처럼 버튼 가운데를 톡 친다(웹 화면의 음파 버튼용). */
+    private boolean tap(AccessibilityNodeInfo n) {
+        AccessibilityNodeInfo c = clickableOf(n);
+        Rect r = new Rect();
+        (c != null ? c : n).getBoundsInScreen(r);
+        if (r.isEmpty()) return click(n);
+        Path p = new Path();
+        p.moveTo(r.exactCenterX(), r.exactCenterY());
+        return dispatchGesture(new GestureDescription.Builder()
+                .addStroke(new GestureDescription.StrokeDescription(p, 0, 80)).build(), null, null);
+    }
+
+    private static String center(AccessibilityNodeInfo n) {
+        Rect r = new Rect();
+        n.getBoundsInScreen(r);
+        return "(" + r.centerX() + "," + r.centerY() + ")";
+    }
 
     private boolean click(AccessibilityNodeInfo n) {
         AccessibilityNodeInfo c = clickableOf(n);
