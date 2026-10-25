@@ -34,7 +34,7 @@ public class SettingsActivity extends Activity {
         col.setPadding(pad, pad, pad, pad * 2);
 
         col.addView(heading("클로드 도우미"));
-        col.addView(body("빅스비에게 \"영어노트 열어줘\"(마이크), \"프리토킹 열어줘\"(음파), "
+        col.addView(body("빅스비에게 \"딕테이션 열어줘\"(마이크), \"프리토킹 열어줘\"(음파), "
                 + "\"공부 끝 열어줘\"라고 말하면 Claude 영어공부 대화에서 해당 버튼을 대신 누릅니다."));
 
         status = body("");

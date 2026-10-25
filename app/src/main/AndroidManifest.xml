@@ -11,7 +11,7 @@
         android:icon="@android:drawable/ic_btn_speak_now"
         android:allowBackup="false">
 
-        <!-- 빅스비: "하이 빅스비, 잉글리시 노트 열어줘" -->
+        <!-- 빅스비: "하이 빅스비, 딕테이션 열어줘" -->
         <activity
             android:name=".StartActivity"
             android:label="@string/label_start"
