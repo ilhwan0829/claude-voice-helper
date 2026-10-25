@@ -10,8 +10,22 @@ android {
         applicationId "kr.ilhwan.claudevoice"
         minSdk 26
         targetSdk 34
-        versionCode 3
-        versionName "1.2"
+        versionCode 4
+        versionName "1.3"
+    }
+
+    // 모든 빌드를 같은 키로 서명해야 폰에서 '업데이트'로 설치된다.
+    signingConfigs {
+        helper {
+            storeFile file("helper.keystore")
+            storePassword "claudehelper"
+            keyAlias "helper"
+            keyPassword "claudehelper"
+        }
+    }
+    buildTypes {
+        debug { signingConfig signingConfigs.helper }
+        release { signingConfig signingConfigs.helper }
     }
 
     compileOptions {

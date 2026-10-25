@@ -34,7 +34,7 @@ public class SettingsActivity extends Activity {
         col.setOrientation(LinearLayout.VERTICAL);
         col.setPadding(pad, pad, pad, pad * 2);
 
-        col.addView(heading("클로드 도우미"));
+        col.addView(heading("클로드 도우미 " + version()));
         col.addView(body("빅스비에게 \"딕테이션 열어줘\"(마이크), \"프리토킹 열어줘\"(음파), "
                 + "\"공부 끝 열어줘\"라고 말하면 Claude 영어공부 대화에서 해당 버튼을 대신 누릅니다."));
 
@@ -99,6 +99,14 @@ public class SettingsActivity extends Activity {
         Prefs.put(this, Prefs.KEY_END_KW, endKw.getText().toString().trim());
         Prefs.sp(this).edit().putBoolean(Prefs.KEY_GO_HOME, goHome.isChecked()).apply();
         Toast.makeText(this, "저장했습니다.", Toast.LENGTH_SHORT).show();
+    }
+
+    private String version() {
+        try {
+            return "v" + getPackageManager().getPackageInfo(getPackageName(), 0).versionName;
+        } catch (Exception e) {
+            return "";
+        }
     }
 
     private void copy(String s) {
