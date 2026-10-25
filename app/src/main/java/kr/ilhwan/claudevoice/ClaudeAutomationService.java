@@ -35,6 +35,7 @@ public class ClaudeAutomationService extends AccessibilityService {
     static final String MODE_STOP = "stop";
     static final String MODE_DUMP = "dump";
     static final String MODE_VOICE = "voice";   // 마이크 오른쪽 음파(음성 대화 모드) 버튼
+    static final String MODE_SEARCH = "search"; // '지식' 대화에서 음파 버튼(클로드검색)
 
     static volatile ClaudeAutomationService instance;
 
@@ -78,7 +79,8 @@ public class ClaudeAutomationService extends AccessibilityService {
     private int scrolls;
     private boolean viaLink;
     private boolean bixby;
-    private boolean wantVoiceMode;  // true면 음파 버튼, false면 마이크 버튼
+    private boolean wantVoiceMode;
+    private boolean secondChat;     // true면 '지식' 대화  // true면 음파 버튼, false면 마이크 버튼
     private final StringBuilder log = new StringBuilder();
 
     private static final int STEP_FIND_CHAT = 0;
@@ -121,7 +123,8 @@ public class ClaudeAutomationService extends AccessibilityService {
         handler.removeCallbacksAndMessages(null);
         mode = newMode;
         viaLink = openedByLink;
-        wantVoiceMode = MODE_VOICE.equals(newMode);
+        wantVoiceMode = MODE_VOICE.equals(newMode) || MODE_SEARCH.equals(newMode);
+        secondChat = MODE_SEARCH.equals(newMode);
         startedAt = SystemClock.uptimeMillis();
         // Claude 앱이 뜰 시간. 진단은 사용자가 원하는 화면으로 옮길 수 있게 4초 기다린다.
         // 빅스비로 실행하면 빅스비 창이 닫히고 마이크를 놓을 때까지 3초 기다린다.
@@ -159,7 +162,8 @@ public class ClaudeAutomationService extends AccessibilityService {
         try {
             switch (mode) {
                 case MODE_START:
-                case MODE_VOICE: tickStart(now); break;
+                case MODE_VOICE:
+                case MODE_SEARCH: tickStart(now); break;
                 case MODE_STOP: tickStop(now); break;
                 case MODE_DUMP:
                     saveDump();
@@ -295,8 +299,9 @@ public class ClaudeAutomationService extends AccessibilityService {
     // ---------------------------------------------------------------- 화면 찾기
 
     private String title() {
-        String t = Prefs.get(this, Prefs.KEY_TITLE, Prefs.DEFAULT_TITLE);
-        return t.isEmpty() ? Prefs.DEFAULT_TITLE : t;
+        String def = secondChat ? Prefs.DEFAULT_TITLE2 : Prefs.DEFAULT_TITLE;
+        String t = Prefs.get(this, secondChat ? Prefs.KEY_TITLE2 : Prefs.KEY_TITLE, def);
+        return t.isEmpty() ? def : t;
     }
 
     /** Claude 창(크롬 설치 앱이면 크롬이 그리는 웹 화면, 음성 오버레이 포함)의 모든 노드. */

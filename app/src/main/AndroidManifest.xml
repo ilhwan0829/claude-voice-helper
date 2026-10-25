@@ -51,6 +51,21 @@
             </intent-filter>
         </activity>
 
+        <!-- 빅스비: "하이 빅스비, 클로드검색 열어줘" → '지식' 대화 음파 버튼 -->
+        <activity
+            android:name=".SearchActivity"
+            android:label="@string/label_search"
+            android:exported="true"
+            android:excludeFromRecents="true"
+            android:noHistory="true"
+            android:taskAffinity=""
+            android:theme="@android:style/Theme.Translucent.NoTitleBar">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity>
+
         <!-- 빅스비: "하이 빅스비, 공부 끝 열어줘" -->
         <activity
             android:name=".StopActivity"

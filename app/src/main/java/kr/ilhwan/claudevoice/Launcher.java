@@ -33,7 +33,9 @@ final class Launcher {
         boolean openedByLink = false;
         if (ClaudeAutomationService.MODE_START.equals(mode)
                 || ClaudeAutomationService.MODE_VOICE.equals(mode)) {
-            openedByLink = openChatLink(c, t);
+            openedByLink = openChatLink(c, t, Prefs.KEY_URL);
+        } else if (ClaudeAutomationService.MODE_SEARCH.equals(mode)) {
+            openedByLink = openChatLink(c, t, Prefs.KEY_URL2);
         }
         if (!openedByLink && !open(c, t)) {
             Toast.makeText(c, "Claude를 열지 못했어요.", Toast.LENGTH_LONG).show();
@@ -43,8 +45,8 @@ final class Launcher {
     }
 
     /** 설정에 대화 링크가 있으면 그 대화로 바로 연다. */
-    private static boolean openChatLink(Context c, Target t) {
-        String url = Prefs.get(c, Prefs.KEY_URL, "");
+    private static boolean openChatLink(Context c, Target t, String urlKey) {
+        String url = Prefs.get(c, urlKey, "");
         if (url.startsWith("claude.ai/")) url = "https://" + url;
         if (!url.startsWith("https://claude.ai/")) return false;
         Intent i = new Intent(Intent.ACTION_VIEW, Uri.parse(url));
