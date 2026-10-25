@@ -131,7 +131,7 @@ public class ClaudeAutomationService extends AccessibilityService {
         menuTried = false;
         scrolls = 0;
         voiceStepSince = 0;
-        loadingNoted = false;
+        loadingSince = 0;
         stopClicks = 0;
         log.setLength(0);
         note("시작: " + newMode + (fromBixby ? " (빅스비)" : " (테스트)") + " / " + target.describe() + (openedByLink ? " / 대화 링크로 열기" : ""));
@@ -233,16 +233,17 @@ public class ClaudeAutomationService extends AccessibilityService {
             return;
         }
         // 대화가 아직 불러오는 중이면 버튼 이름이 비어 있으므로 기다린다.
-        if (isLoading(nodes) && now - startedAt < START_TIMEOUT_MS - 3000) {
-            if (!loadingNoted) { note("대화 불러오는 중 → 대기"); loadingNoted = true; }
-            voiceStepSince = 0;
-            return;
+        // 단, 사이드바 등에 '불러오는 중' 문구가 계속 남아 있을 수 있어 최대 4초만 기다린다.
+        if (isLoading(nodes)) {
+            if (loadingSince == 0) { loadingSince = now; note("불러오는 중 문구 보임 → 최대 4초 대기"); }
+            if (now - loadingSince < 4000) return;
         }
         AccessibilityNodeInfo voice = findVoice(nodes);
         if (voice == null && stepStartedLongAgo(now)) {
             // 이름으로 못 찾으면 위치로: 입력창 아래 줄 왼쪽부터 ＋(1) 마이크(2) 음파(3)
-            voice = bottomLeftButton(nodes, wantVoiceMode ? 2 : 1);
-            if (voice != null) note("이름 대신 위치로 찾음(왼쪽 아래 " + (wantVoiceMode ? "세" : "두") + " 번째)");
+            AccessibilityNodeInfo micByPos = bottomLeftButton(nodes, 1);
+            voice = wantVoiceMode ? rightNeighbor(nodes, micByPos) : micByPos;
+            if (voice != null) note("이름 대신 위치로 찾음(" + (wantVoiceMode ? "＋ 다음 마이크의 오른쪽" : "＋ 다음 버튼") + ")");
         }
         if (voice != null) saveDump();   // 무엇을 눌렀는지 항상 기록(진단용)
         if (voice != null && (wantVoiceMode ? tap(voice) : click(voice))) {
@@ -438,7 +439,7 @@ public class ClaudeAutomationService extends AccessibilityService {
     }
 
     private long voiceStepSince;
-    private boolean loadingNoted;
+    private long loadingSince;
 
     private static final String[] LOADING_WORDS = {"불러오는 중", "로딩", "loading"};
 
@@ -446,7 +447,7 @@ public class ClaudeAutomationService extends AccessibilityService {
         for (AccessibilityNodeInfo n : nodes) {
             if (!n.isVisibleToUser()) continue;
             String l = label(n).toLowerCase(Locale.ROOT);
-            if (!l.isEmpty() && l.length() < 40 && containsAny(l, LOADING_WORDS)) return true;
+            if (!l.isEmpty() && l.length() <= 12 && containsAny(l, LOADING_WORDS)) return true;
         }
         return false;
     }
@@ -454,7 +455,7 @@ public class ClaudeAutomationService extends AccessibilityService {
     /** 음성 버튼 단계에 들어온 지 2.5초가 지났는지. */
     private boolean stepStartedLongAgo(long now) {
         if (voiceStepSince == 0) voiceStepSince = now;
-        return now - voiceStepSince > 4000;
+        return now - voiceStepSince > 2500;
     }
 
     /** 화면 아래 25%·왼쪽 60% 안의 버튼들을 왼쪽부터 세어 index번째(0부터)를 고른다. */
