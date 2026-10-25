@@ -10,6 +10,15 @@ import android.widget.Toast;
 final class Launcher {
     private Launcher() {}
 
+    /** 마지막으로 보낸 대화 링크. 앱이 처음 켜지며 링크를 놓치면 서비스가 한 번 더 보낸다. */
+    static volatile Intent lastLink;
+
+    static void reopenLastLink(Context c) {
+        Intent i = lastLink;
+        if (i == null) return;
+        try { c.startActivity(i); } catch (Exception ignored) {}
+    }
+
     static void run(Context c, String mode) {
         run(c, mode, false);
     }
@@ -31,6 +40,7 @@ final class Launcher {
             return;
         }
         boolean openedByLink = false;
+        lastLink = null;
         if (ClaudeAutomationService.MODE_START.equals(mode)
                 || ClaudeAutomationService.MODE_VOICE.equals(mode)) {
             openedByLink = openChatLink(c, t, Prefs.KEY_URL);
@@ -55,6 +65,7 @@ final class Launcher {
         if (i.resolveActivity(c.getPackageManager()) == null) return false;
         try {
             c.startActivity(i);
+            lastLink = i;
             return true;
         } catch (Exception e) {
             return false;

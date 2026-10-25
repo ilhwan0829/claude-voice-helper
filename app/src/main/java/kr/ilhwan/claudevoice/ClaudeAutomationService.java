@@ -67,7 +67,7 @@ public class ClaudeAutomationService extends AccessibilityService {
     };
 
     private static final long TICK_MS = 500;
-    private static final long START_TIMEOUT_MS = 20000;
+    private static final long START_TIMEOUT_MS = 30000;
     private static final long STOP_TIMEOUT_MS = 6000;
 
     private final Handler handler = new Handler(Looper.getMainLooper());
@@ -135,6 +135,9 @@ public class ClaudeAutomationService extends AccessibilityService {
         scrolls = 0;
         voiceStepSince = 0;
         loadingSince = 0;
+        titleWaitSince = 0;
+        relinked = false;
+        titleMissNoted = false;
         stopClicks = 0;
         log.setLength(0);
         note("시작: " + newMode + (fromBixby ? " (빅스비)" : " (테스트)") + " / " + target.describe() + (openedByLink ? " / 대화 링크로 열기" : ""));
@@ -190,9 +193,9 @@ public class ClaudeAutomationService extends AccessibilityService {
         if (nodes.isEmpty()) return;  // 아직 Claude 화면이 아님
 
         if (step == STEP_FIND_CHAT) {
-            AccessibilityNodeInfo titleNode = findTitle(nodes);
+            AccessibilityNodeInfo titleNode = findTitle(nodes, BELOW_TOP);
             AccessibilityNodeInfo voice = findVoice(nodes);
-            if (titleNode != null && voice != null && inTopArea(titleNode)) {
+            if (voice != null && findTitle(nodes, TOP) != null) {
                 note("이미 '" + title() + "' 대화 화면");
                 step = STEP_PRESS_VOICE;
                 return;
@@ -241,6 +244,30 @@ public class ClaudeAutomationService extends AccessibilityService {
         if (isLoading(nodes)) {
             if (loadingSince == 0) { loadingSince = now; note("불러오는 중 문구 보임 → 최대 4초 대기"); }
             if (now - loadingSince < 4000) return;
+        }
+        // 지금 화면이 목표 대화인지: 위쪽 제목줄에 대화 이름이 보여야 한다.
+        if (findTitle(nodes, TOP) == null) {
+            if (titleWaitSince == 0) titleWaitSince = now;
+            long waited = now - titleWaitSince;
+            if (viaLink && !relinked && waited > 1500) {
+                // 창이 닫혀 있다 처음 켜지면 링크를 놓치고 첫 화면에 머문다 → 링크를 한 번 더 보낸다.
+                relinked = true;
+                titleWaitSince = 0;
+                Launcher.reopenLastLink(this);
+                note("대화 화면이 아님 → 대화 링크 다시 열기");
+                waitUntil = now + 2500;
+                return;
+            }
+            if (viaLink && relinked && waited > 4000) {
+                viaLink = false;
+                step = STEP_FIND_CHAT;
+                menuTried = false;
+                titleWaitSince = 0;
+                note("링크로도 안 열림 → 대화 목록에서 '" + title() + "' 찾기");
+                return;
+            }
+            if (waited < 4000) return;
+            if (!titleMissNoted) { titleMissNoted = true; note("위쪽에 대화 제목이 안 보임 → 그대로 진행"); }
         }
         AccessibilityNodeInfo voice = findVoice(nodes);
         if (voice == null && stepStartedLongAgo(now)) {
@@ -339,13 +366,22 @@ public class ClaudeAutomationService extends AccessibilityService {
         return s.trim();
     }
 
-    private AccessibilityNodeInfo findTitle(List<AccessibilityNodeInfo> nodes) {
-        String want = title();
+    private static final int ANY = 0, TOP = 1, BELOW_TOP = 2;
+
+    private static String squash(String s) {
+        return s.replaceAll("\\s+", "");
+    }
+
+    /** 대화 제목 찾기(띄어쓰기 무시). where: ANY / TOP(위쪽 제목줄) / BELOW_TOP(목록 등). */
+    private AccessibilityNodeInfo findTitle(List<AccessibilityNodeInfo> nodes, int where) {
+        String want = squash(title());
         AccessibilityNodeInfo partial = null;
         for (AccessibilityNodeInfo n : nodes) {
             if (!n.isVisibleToUser()) continue;
-            String l = label(n);
+            String l = squash(label(n));
             if (l.isEmpty() || n.isEditable()) continue;
+            if (where == TOP && !inTopArea(n)) continue;
+            if (where == BELOW_TOP && inTopArea(n)) continue;
             if (l.equals(want)) return n;
             if (partial == null && l.startsWith(want) && l.length() <= want.length() + 30) partial = n;
         }
@@ -445,6 +481,9 @@ public class ClaudeAutomationService extends AccessibilityService {
 
     private long voiceStepSince;
     private long loadingSince;
+    private long titleWaitSince;
+    private boolean relinked;
+    private boolean titleMissNoted;
 
     private static final String[] LOADING_WORDS = {"불러오는 중", "로딩", "loading"};
 
