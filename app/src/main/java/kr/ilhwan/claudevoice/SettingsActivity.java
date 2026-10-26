@@ -22,7 +22,7 @@ import android.widget.Toast;
 public class SettingsActivity extends Activity {
 
     private TextView status, lastLog, lastDump;
-    private EditText title, url, voiceKw, endKw, title2, url2;
+    private EditText title, url, voiceKw, endKw, title2, url2, title3, url3;
     private CheckBox goHome;
     private TextView target;
 
@@ -44,12 +44,17 @@ public class SettingsActivity extends Activity {
         col.addView(button("접근성 설정 열기", v ->
                 startActivity(new Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS))));
 
-        col.addView(heading("대화 설정"));
+        col.addView(heading("딕테이션 대화 (영어공부)"));
         title = field(col, "대화 제목", Prefs.get(this, Prefs.KEY_TITLE, Prefs.DEFAULT_TITLE), false);
         target = body("");
         col.addView(target);
         url = field(col, "대화 링크 (크롬 설치 앱이면 꼭 입력) — 크롬에서 영어공부 대화를 열고 주소창의 claude.ai/chat/… 주소를 복사해 붙여 넣기",
                 Prefs.get(this, Prefs.KEY_URL, ""), true);
+        col.addView(heading("프리토킹 대화"));
+        url3 = field(col, "대화 링크 — 비워 두면 위의 영어공부(딕테이션) 대화를 씀",
+                Prefs.get(this, Prefs.KEY_URL3, ""), true);
+        title3 = field(col, "대화 제목 (선택) — 넣어 두면 창이 닫혀 있을 때 더 확실하게 엶",
+                Prefs.get(this, Prefs.KEY_TITLE3, ""), false);
         col.addView(heading("지식백과 대화 (지식)"));
         title2 = field(col, "대화 제목", Prefs.get(this, Prefs.KEY_TITLE2, Prefs.DEFAULT_TITLE2), false);
         url2 = field(col, "대화 링크 — 지식 대화를 열고 주소창의 claude.ai/… 주소를 복사해 붙여 넣기",
@@ -102,6 +107,8 @@ public class SettingsActivity extends Activity {
     private void save() {
         Prefs.put(this, Prefs.KEY_TITLE, title.getText().toString().trim());
         Prefs.put(this, Prefs.KEY_TITLE2, title2.getText().toString().trim());
+        Prefs.put(this, Prefs.KEY_URL3, url3.getText().toString().trim());
+        Prefs.put(this, Prefs.KEY_TITLE3, title3.getText().toString().trim());
         Prefs.put(this, Prefs.KEY_URL2, url2.getText().toString().trim());
         Prefs.put(this, Prefs.KEY_URL, url.getText().toString().trim());
         Prefs.put(this, Prefs.KEY_VOICE_KW, voiceKw.getText().toString().trim());

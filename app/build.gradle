@@ -10,8 +10,8 @@ android {
         applicationId "kr.ilhwan.claudevoice"
         minSdk 26
         targetSdk 34
-        versionCode 16
-        versionName "2.4"
+        versionCode 17
+        versionName "2.5"
     }
 
     // 모든 빌드를 같은 키로 서명해야 폰에서 '업데이트'로 설치된다.

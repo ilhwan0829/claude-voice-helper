@@ -80,6 +80,7 @@ public class ClaudeAutomationService extends AccessibilityService {
     private boolean viaLink;
     private boolean bixby;
     private boolean wantVoiceMode;
+    private boolean freetalkChat;   // true면 프리토킹 전용 대화
     private boolean secondChat;     // true면 '지식' 대화  // true면 음파 버튼, false면 마이크 버튼
     private final StringBuilder log = new StringBuilder();
 
@@ -157,6 +158,7 @@ public class ClaudeAutomationService extends AccessibilityService {
         viaLink = openedByLink;
         wantVoiceMode = MODE_VOICE.equals(newMode) || MODE_SEARCH.equals(newMode);
         secondChat = MODE_SEARCH.equals(newMode);
+        freetalkChat = MODE_VOICE.equals(newMode) && Prefs.hasFreetalkChat(this);
         startedAt = SystemClock.uptimeMillis();
         // 고정 대기 없음: 화면 변경 알림이 오면 바로 확인한다. 진단만 화면을 옮길 시간 4초를 준다.
         waitUntil = startedAt + (MODE_DUMP.equals(newMode) ? 4000 : 0);
@@ -291,7 +293,7 @@ public class ClaudeAutomationService extends AccessibilityService {
             if (now - loadingSince < 4000) return;
         }
         // 지금 화면이 목표 대화인지: 위쪽 제목줄에 대화 이름이 보여야 한다.
-        if (findTitle(nodes, TOP) == null) {
+        if (!title().isEmpty() && findTitle(nodes, TOP) == null) {
             if (titleWaitSince == 0) titleWaitSince = now;
             long waited = now - titleWaitSince;
             // 입력창 버튼이 그려졌는데(=화면 로딩 끝) 제목이 없으면 다른 화면 → 즉시 링크 다시 열기.
@@ -393,6 +395,8 @@ public class ClaudeAutomationService extends AccessibilityService {
     // ---------------------------------------------------------------- 화면 찾기
 
     private String title() {
+        // 프리토킹 전용 대화는 제목을 비워 둘 수 있다(비어 있으면 제목 확인을 건너뜀).
+        if (freetalkChat) return Prefs.get(this, Prefs.KEY_TITLE3, "");
         String def = secondChat ? Prefs.DEFAULT_TITLE2 : Prefs.DEFAULT_TITLE;
         String t = Prefs.get(this, secondChat ? Prefs.KEY_TITLE2 : Prefs.KEY_TITLE, def);
         return t.isEmpty() ? def : t;

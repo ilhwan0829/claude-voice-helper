@@ -41,9 +41,11 @@ final class Launcher {
         }
         boolean openedByLink = false;
         lastLink = null;
-        if (ClaudeAutomationService.MODE_START.equals(mode)
-                || ClaudeAutomationService.MODE_VOICE.equals(mode)) {
+        if (ClaudeAutomationService.MODE_START.equals(mode)) {
             openedByLink = openChatLink(c, t, Prefs.KEY_URL);
+        } else if (ClaudeAutomationService.MODE_VOICE.equals(mode)) {
+            // 프리토킹 전용 링크가 있으면 그 대화, 없으면 영어공부 대화
+            openedByLink = openChatLink(c, t, Prefs.hasFreetalkChat(c) ? Prefs.KEY_URL3 : Prefs.KEY_URL);
         } else if (ClaudeAutomationService.MODE_SEARCH.equals(mode)) {
             openedByLink = openChatLink(c, t, Prefs.KEY_URL2);
         }

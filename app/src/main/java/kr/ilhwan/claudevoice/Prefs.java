@@ -22,6 +22,15 @@ final class Prefs {
     static final String KEY_URL2 = "chat_url_knowledge";
     static final String DEFAULT_TITLE2 = "지식";
 
+    // '프리토킹'용 대화(비워 두면 영어공부 대화를 그대로 씀)
+    static final String KEY_TITLE3 = "chat_title_freetalk";
+    static final String KEY_URL3 = "chat_url_freetalk";
+
+    /** 프리토킹 전용 링크가 들어 있으면 true. */
+    static boolean hasFreetalkChat(Context c) {
+        return !get(c, KEY_URL3, "").isEmpty();
+    }
+
     private Prefs() {}
 
     static SharedPreferences sp(Context c) {
