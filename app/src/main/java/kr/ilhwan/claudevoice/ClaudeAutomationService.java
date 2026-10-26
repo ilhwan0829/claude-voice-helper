@@ -35,7 +35,7 @@ public class ClaudeAutomationService extends AccessibilityService {
     static final String MODE_STOP = "stop";
     static final String MODE_DUMP = "dump";
     static final String MODE_VOICE = "voice";   // 마이크 오른쪽 음파(음성 대화 모드) 버튼
-    static final String MODE_SEARCH = "search"; // '지식' 대화에서 음파 버튼(클로드검색)
+    static final String MODE_SEARCH = "search"; // '지식' 대화에서 음파 버튼(척척박사)
 
     static volatile ClaudeAutomationService instance;
 
@@ -108,7 +108,39 @@ public class ClaudeAutomationService extends AccessibilityService {
 
     @Override
     public void onAccessibilityEvent(AccessibilityEvent event) {
-        // 화면 변화는 tick()에서 주기적으로 확인하므로 이벤트는 쓰지 않는다.
+        // 리액트식: Claude(크롬) 화면이나 창 구성이 바뀌는 순간 바로 다시 확인한다.
+        if (mode == null || event == null) return;
+        CharSequence pkg = event.getPackageName();
+        boolean relevant = event.getEventType() == AccessibilityEvent.TYPE_WINDOWS_CHANGED
+                || (pkg != null && (targetPkgs.contains(pkg.toString())
+                        || pkg.toString().contains("bixby")));
+        if (relevant) scheduleTick(EVENT_DEBOUNCE_MS);
+    }
+
+    private static final long EVENT_DEBOUNCE_MS = 80;     // 화면 변경이 몰릴 때 묶어서 한 번만 확인
+    private static final long SAFETY_POLL_MS = 700;       // 알림이 안 와도 이 간격으로는 확인(안전장치)
+    private final Runnable tickRunnable = this::tick;
+    private long nextTickAt;
+
+    /** delay 뒤에 확인. 이미 더 빨리 잡힌 확인이 있으면 그대로 둔다. */
+    private void scheduleTick(long delay) {
+        long at = SystemClock.uptimeMillis() + delay;
+        if (nextTickAt > SystemClock.uptimeMillis() && nextTickAt <= at) return;
+        handler.removeCallbacks(tickRunnable);
+        nextTickAt = at;
+        handler.postAtTime(tickRunnable, at);
+    }
+
+    /** 빅스비 창이 아직 떠 있는지(떠 있으면 마이크를 붙잡고 있을 수 있다). */
+    private boolean bixbyVisible() {
+        List<AccessibilityWindowInfo> ws = getWindows();
+        if (ws == null) return false;
+        for (AccessibilityWindowInfo w : ws) {
+            AccessibilityNodeInfo r = w.getRoot();
+            if (r != null && r.getPackageName() != null
+                    && r.getPackageName().toString().contains("bixby")) return true;
+        }
+        return false;
     }
 
     @Override
@@ -126,9 +158,11 @@ public class ClaudeAutomationService extends AccessibilityService {
         wantVoiceMode = MODE_VOICE.equals(newMode) || MODE_SEARCH.equals(newMode);
         secondChat = MODE_SEARCH.equals(newMode);
         startedAt = SystemClock.uptimeMillis();
-        // Claude 앱이 뜰 시간. 진단은 사용자가 원하는 화면으로 옮길 수 있게 4초 기다린다.
-        // 빅스비로 실행하면 빅스비 창이 닫히고 마이크를 놓을 때까지 3초 기다린다.
-        waitUntil = startedAt + (MODE_DUMP.equals(newMode) ? 4000 : fromBixby ? 3000 : 1200);
+        // 고정 대기 없음: 화면 변경 알림이 오면 바로 확인한다. 진단만 화면을 옮길 시간 4초를 준다.
+        waitUntil = startedAt + (MODE_DUMP.equals(newMode) ? 4000 : 0);
+        nextTickAt = 0;
+        stableCenter = null;
+        bixbyGoneAt = 0;
         bixby = fromBixby;
         step = openedByLink ? STEP_PRESS_VOICE : STEP_FIND_CHAT;
         menuTried = false;
@@ -141,7 +175,7 @@ public class ClaudeAutomationService extends AccessibilityService {
         stopClicks = 0;
         log.setLength(0);
         note("시작: " + newMode + (fromBixby ? " (빅스비)" : " (테스트)") + " / " + target.describe() + (openedByLink ? " / 대화 링크로 열기" : ""));
-        handler.postDelayed(this::tick, TICK_MS);
+        scheduleTick(150);
     }
 
     private void finishJob(boolean ok, String message) {
@@ -158,8 +192,9 @@ public class ClaudeAutomationService extends AccessibilityService {
     private void tick() {
         if (mode == null) return;
         long now = SystemClock.uptimeMillis();
+        nextTickAt = 0;
         if (now < waitUntil) {
-            handler.postDelayed(this::tick, TICK_MS);
+            scheduleTick(waitUntil - now);
             return;
         }
         try {
@@ -177,10 +212,27 @@ public class ClaudeAutomationService extends AccessibilityService {
         } catch (Exception e) {
             finishJob(false, "오류 " + e.getClass().getSimpleName());
         }
-        if (mode != null) handler.postDelayed(this::tick, TICK_MS);
+        if (mode != null) scheduleTick(now < waitUntil ? waitUntil - now : SAFETY_POLL_MS);
     }
 
     // ---------------------------------------------------------------- 시작 흐름
+
+    private long bixbyGoneAt;
+
+    /** 빅스비로 실행했으면 빅스비 창이 사라지고 0.3초 뒤부터 진행(최대 4초 대기). */
+    private boolean bixbyReleased(long now) {
+        if (!bixby) return true;
+        if (bixbyVisible() && now - startedAt < 4000) {
+            bixbyGoneAt = 0;
+            return false;
+        }
+        if (bixbyGoneAt == 0) {
+            bixbyGoneAt = now;
+            note("빅스비 창 닫힘 확인 (" + (now - startedAt) + "ms)");
+            scheduleTick(300);
+        }
+        return now - bixbyGoneAt >= 300;
+    }
 
     private void tickStart(long now) {
         if (now - startedAt > START_TIMEOUT_MS) {
@@ -189,6 +241,7 @@ public class ClaudeAutomationService extends AccessibilityService {
                     : (wantVoiceMode ? "음파 버튼을 찾지 못했어요." : "마이크 버튼을 찾지 못했어요."));
             return;
         }
+        if (!bixbyReleased(now)) return;
         List<AccessibilityNodeInfo> nodes = claudeNodes();
         if (nodes.isEmpty()) return;  // 아직 Claude 화면이 아님
 
@@ -203,21 +256,18 @@ public class ClaudeAutomationService extends AccessibilityService {
             if (titleNode != null && click(titleNode)) {
                 note("'" + title() + "' 대화 열기");
                 step = STEP_PRESS_VOICE;
-                waitUntil = now + 1500;
-                return;
+                return;   // 대화가 열리면 화면 변경 알림으로 바로 이어진다
             }
             if (!menuTried) {
                 menuTried = true;
                 AccessibilityNodeInfo menu = findAny(nodes, MENU_KW, null, true);
                 if (menu != null && click(menu)) {
                     note("대화 목록 열기: " + label(menu));
-                    waitUntil = now + 900;
                     return;
                 }
                 // 메뉴 버튼이 없으면 왼쪽 가장자리에서 밀어서 열어 본다.
                 swipeFromLeft();
                 note("왼쪽에서 밀어서 대화 목록 열기 시도");
-                waitUntil = now + 900;
                 return;
             }
             if (scrolls < 6) {
@@ -226,19 +276,13 @@ public class ClaudeAutomationService extends AccessibilityService {
                     list.performAction(AccessibilityNodeInfo.ACTION_SCROLL_FORWARD);
                     scrolls++;
                     note("대화 목록 스크롤 " + scrolls);
-                    waitUntil = now + 600;
+                    waitUntil = now + 350;   // 스크롤이 끝날 때까지만
                 }
             }
             return;
         }
 
         // STEP_PRESS_VOICE
-        if (bixby && voiceStepSince == 0) {
-            voiceStepSince = now;
-            waitUntil = now + 1000;   // 채팅 화면이 다 그려질 때까지 한 번 더 대기
-            note("빅스비 실행: 1초 추가 대기");
-            return;
-        }
         // 대화가 아직 불러오는 중이면 버튼 이름이 비어 있으므로 기다린다.
         // 단, 사이드바 등에 '불러오는 중' 문구가 계속 남아 있을 수 있어 최대 4초만 기다린다.
         if (isLoading(nodes)) {
@@ -249,17 +293,19 @@ public class ClaudeAutomationService extends AccessibilityService {
         if (findTitle(nodes, TOP) == null) {
             if (titleWaitSince == 0) titleWaitSince = now;
             long waited = now - titleWaitSince;
-            if (viaLink && !relinked && waited > 1500) {
+            // 입력창 버튼이 그려졌는데(=화면 로딩 끝) 제목이 없으면 다른 화면 → 즉시 링크 다시 열기.
+            boolean inputReady = findAny(nodes, VOICE_KW, VOICE_EXCLUDE, true) != null;
+            if (viaLink && !relinked && (inputReady || waited > 3000)) {
                 // 창이 닫혀 있다 처음 켜지면 링크를 놓치고 첫 화면에 머문다 → 링크를 한 번 더 보낸다.
                 relinked = true;
                 titleWaitSince = 0;
                 Launcher.reopenLastLink(this);
-                note("대화 화면이 아님 → 대화 링크 다시 열기");
-                waitUntil = now + 2500;
+                note("대화 화면이 아님 → 대화 링크 다시 열기 (" + (now - startedAt) + "ms)");
+                waitUntil = now + 300;
                 return;
             }
             // 창이 닫혀 있다 켜진 경우 claude.ai가 다 뜨는 데 오래 걸리므로 8초까지 기다린다.
-            if (viaLink && relinked && waited > 8000) {
+            if (viaLink && relinked && waited > 10000) {   // 안전장치
                 viaLink = false;
                 step = STEP_FIND_CHAT;
                 menuTried = false;
@@ -277,7 +323,19 @@ public class ClaudeAutomationService extends AccessibilityService {
             voice = wantVoiceMode ? rightNeighbor(nodes, micByPos) : micByPos;
             if (voice != null) note("이름 대신 위치로 찾음(" + (wantVoiceMode ? "＋ 다음 마이크의 오른쪽" : "＋ 다음 버튼") + ")");
         }
-        if (voice != null) saveDump();   // 무엇을 눌렀는지 항상 기록(진단용)
+        if (voice != null) {
+            // 버튼이 막 그려진 순간에는 반응하지 않을 수 있어, 같은 자리에 0.2초 이상 있을 때 누른다.
+            String c = center(voice);
+            if (!c.equals(stableCenter)) {
+                stableCenter = c;
+                stableSince = now;
+                scheduleTick(200);
+                return;
+            }
+            if (now - stableSince < 200) return;
+            note("버튼 확인까지 " + (now - startedAt) + "ms");
+            saveDump();   // 무엇을 눌렀는지 항상 기록(진단용)
+        }
         if (voice != null && (wantVoiceMode ? tap(voice) : click(voice))) {
             note("누른 위치: " + center(voice));
             finishJob(true, (wantVoiceMode ? "음파 버튼 누름: " : "마이크 버튼 누름: ") + label(voice));
@@ -300,6 +358,7 @@ public class ClaudeAutomationService extends AccessibilityService {
      * 종료·중지 버튼이 보이면 누르고 잠시 뒤 다시 확인(최대 3번) → 더 없으면 뒤로 가기 → 홈 화면.
      */
     private void tickStop(long now) {
+        if (!bixbyReleased(now)) return;
         List<AccessibilityNodeInfo> nodes = claudeNodes();
         String custom = Prefs.get(this, Prefs.KEY_END_KW, "");
         AccessibilityNodeInfo end = custom.isEmpty()
@@ -308,7 +367,7 @@ public class ClaudeAutomationService extends AccessibilityService {
         if (end != null && stopClicks < 3 && click(end)) {
             stopClicks++;
             note("종료 버튼 누름: " + label(end));
-            waitUntil = now + 700;   // 음성 화면이 닫히고 받아쓰기도 남았는지 다시 확인
+            waitUntil = now + 250;   // 같은 버튼을 두 번 누르지 않게 잠깐만
             return;
         }
         if (stopClicks == 0 && now - startedAt < 2500) return;  // 화면이 뜰 때까지 조금 더 기다림
@@ -481,6 +540,8 @@ public class ClaudeAutomationService extends AccessibilityService {
     }
 
     private long voiceStepSince;
+    private String stableCenter;
+    private long stableSince;
     private long loadingSince;
     private long titleWaitSince;
     private boolean relinked;

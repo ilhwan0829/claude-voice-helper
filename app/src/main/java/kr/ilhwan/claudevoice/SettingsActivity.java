@@ -36,7 +36,7 @@ public class SettingsActivity extends Activity {
 
         col.addView(heading("클로드 도우미 " + version()));
         col.addView(body("빅스비에게 \"딕테이션 열어줘\"(마이크), \"프리토킹 열어줘\"(음파), "
-                + "\"클로드검색 열어줘\"(지식 대화·음파), \"공부 끝 열어줘\"라고 말하면 해당 Claude 대화를 열고 버튼을 대신 누릅니다."));
+                + "\"척척박사 열어줘\"(지식 대화·음파), \"공부 끝 열어줘\"라고 말하면 해당 Claude 대화를 열고 버튼을 대신 누릅니다."));
 
         status = body("");
         status.setTypeface(Typeface.DEFAULT_BOLD);
@@ -50,7 +50,7 @@ public class SettingsActivity extends Activity {
         col.addView(target);
         url = field(col, "대화 링크 (크롬 설치 앱이면 꼭 입력) — 크롬에서 영어공부 대화를 열고 주소창의 claude.ai/chat/… 주소를 복사해 붙여 넣기",
                 Prefs.get(this, Prefs.KEY_URL, ""), true);
-        col.addView(heading("클로드검색 대화 (지식)"));
+        col.addView(heading("척척박사 대화 (지식)"));
         title2 = field(col, "대화 제목", Prefs.get(this, Prefs.KEY_TITLE2, Prefs.DEFAULT_TITLE2), false);
         url2 = field(col, "대화 링크 — 지식 대화를 열고 주소창의 claude.ai/… 주소를 복사해 붙여 넣기",
                 Prefs.get(this, Prefs.KEY_URL2, ""), true);
@@ -66,7 +66,7 @@ public class SettingsActivity extends Activity {
 
         col.addView(heading("테스트"));
         col.addView(button("시작 테스트", v -> { save(); Launcher.run(this, ClaudeAutomationService.MODE_START); }));
-        col.addView(button("클로드검색(지식·음파) 테스트", v -> { save(); Launcher.run(this, ClaudeAutomationService.MODE_SEARCH); }));
+        col.addView(button("척척박사(지식·음파) 테스트", v -> { save(); Launcher.run(this, ClaudeAutomationService.MODE_SEARCH); }));
         col.addView(button("프리토킹(음파) 테스트", v -> { save(); Launcher.run(this, ClaudeAutomationService.MODE_VOICE); }));
         col.addView(button("종료 테스트", v -> { save(); Launcher.run(this, ClaudeAutomationService.MODE_STOP); }));
         col.addView(body("진단: 누르면 Claude가 열립니다. 4초 안에 음성 모드 화면 등 확인할 화면으로 옮겨 두면 "
