@@ -168,6 +168,7 @@ public class ClaudeAutomationService extends AccessibilityService {
         menuTried = false;
         scrolls = 0;
         voiceStepSince = 0;
+        sidebarClosed = false;
         loadingSince = 0;
         titleWaitSince = 0;
         relinked = false;
@@ -317,11 +318,17 @@ public class ClaudeAutomationService extends AccessibilityService {
             if (!titleMissNoted) { titleMissNoted = true; note("위쪽에 대화 제목이 안 보임 → 그대로 진행"); }
         }
         AccessibilityNodeInfo voice = findVoice(nodes);
-        if (voice == null && stepStartedLongAgo(now)) {
-            // 이름으로 못 찾으면 위치로: 입력창 아래 줄 왼쪽부터 ＋(1) 마이크(2) 음파(3)
-            AccessibilityNodeInfo micByPos = bottomLeftButton(nodes, 1);
-            voice = wantVoiceMode ? rightNeighbor(nodes, micByPos) : micByPos;
-            if (voice != null) note("이름 대신 위치로 찾음(" + (wantVoiceMode ? "＋ 다음 마이크의 오른쪽" : "＋ 다음 버튼") + ")");
+        // 위치로 짐작해서 누르지 않는다(엉뚱한 버튼을 누르는 원인). 버튼이 안 보이면
+        // 왼쪽 대화 목록이 입력창을 가리고 있는 경우이므로 목록을 닫는다(한 번).
+        // (목록이 실제로 열려 있을 때만: '새로 만들기' 항목이 보이면 열린 상태)
+        if (voice == null && !sidebarClosed
+                && findAny(nodes, new String[]{"새로 만들기", "new chat"}, null, false) != null) {
+            AccessibilityNodeInfo side = findAny(nodes, new String[]{"사이드바", "sidebar"}, null, true);
+            if (side != null && click(side)) {
+                sidebarClosed = true;
+                note("버튼이 가려짐 → 대화 목록 닫기: " + label(side));
+                return;
+            }
         }
         if (voice != null) {
             // 버튼이 막 그려진 순간에는 반응하지 않을 수 있어, 같은 자리에 0.2초 이상 있을 때 누른다.
@@ -454,6 +461,8 @@ public class ClaudeAutomationService extends AccessibilityService {
             return findAny(nodes, new String[]{custom.toLowerCase(Locale.ROOT)}, null, true);
         }
         if (!wantVoiceMode) return findAny(nodes, VOICE_KW, VOICE_EXCLUDE, true);
+        AccessibilityNodeInfo named = findAny(nodes, new String[]{"음성 모드 시작", "start voice mode"}, null, true);
+        if (named != null) return named;
         // 음파 버튼 = 마이크 버튼 바로 오른쪽 버튼(같은 줄). 이름보다 위치를 먼저 본다.
         AccessibilityNodeInfo mic = findAny(nodes, VOICE_KW, VOICE_EXCLUDE, true);
         if (mic != null) {
@@ -540,6 +549,7 @@ public class ClaudeAutomationService extends AccessibilityService {
     }
 
     private long voiceStepSince;
+    private boolean sidebarClosed;
     private String stableCenter;
     private long stableSince;
     private long loadingSince;
