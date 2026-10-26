@@ -321,7 +321,7 @@ public class ClaudeAutomationService extends AccessibilityService {
         // 위치로 짐작해서 누르지 않는다(엉뚱한 버튼을 누르는 원인). 버튼이 안 보이면
         // 왼쪽 대화 목록이 입력창을 가리고 있는 경우이므로 목록을 닫는다(한 번).
         // (목록이 실제로 열려 있을 때만: '새로 만들기' 항목이 보이면 열린 상태)
-        if (voice == null && !sidebarClosed
+        if (!sidebarClosed
                 && findAny(nodes, new String[]{"새로 만들기", "new chat"}, null, false) != null) {
             AccessibilityNodeInfo side = findAny(nodes, new String[]{"사이드바", "sidebar"}, null, true);
             if (side != null && click(side)) {
@@ -343,7 +343,7 @@ public class ClaudeAutomationService extends AccessibilityService {
             note("버튼 확인까지 " + (now - startedAt) + "ms");
             saveDump();   // 무엇을 눌렀는지 항상 기록(진단용)
         }
-        if (voice != null && (wantVoiceMode ? tap(voice) : click(voice))) {
+        if (voice != null && clickNode(voice)) {
             note("누른 위치: " + center(voice));
             finishJob(true, (wantVoiceMode ? "음파 버튼 누름: " : "마이크 버튼 누름: ") + label(voice));
             return;
@@ -626,6 +626,12 @@ public class ClaudeAutomationService extends AccessibilityService {
         Rect r = new Rect();
         n.getBoundsInScreen(r);
         return "(" + r.centerX() + "," + r.centerY() + ")";
+    }
+
+    /** 버튼에 직접 클릭 명령을 보낸다(화면 좌표 터치 없음 → 위에 덮인 목록·메뉴를 누를 일이 없다). */
+    private boolean clickNode(AccessibilityNodeInfo n) {
+        AccessibilityNodeInfo c = clickableOf(n);
+        return c != null && c.performAction(AccessibilityNodeInfo.ACTION_CLICK);
     }
 
     private boolean click(AccessibilityNodeInfo n) {
