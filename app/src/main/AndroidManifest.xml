@@ -51,7 +51,7 @@
             </intent-filter>
         </activity>
 
-        <!-- 빅스비: "하이 빅스비, 척척박사 열어줘" → '지식' 대화 음파 버튼 -->
+        <!-- 빅스비: "하이 빅스비, 딕셔너리 열어줘" → '지식' 대화 음파 버튼 -->
         <activity
             android:name=".SearchActivity"
             android:label="@string/label_search"
