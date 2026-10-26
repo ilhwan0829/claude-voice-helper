@@ -17,7 +17,7 @@ final class Prefs {
 
     static final String DEFAULT_TITLE = "영어공부";
 
-    // '딕셔너리'용 두 번째 대화(지식)
+    // '지식백과'용 두 번째 대화(지식)
     static final String KEY_TITLE2 = "chat_title_knowledge";
     static final String KEY_URL2 = "chat_url_knowledge";
     static final String DEFAULT_TITLE2 = "지식";

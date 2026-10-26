@@ -35,7 +35,7 @@ public class ClaudeAutomationService extends AccessibilityService {
     static final String MODE_STOP = "stop";
     static final String MODE_DUMP = "dump";
     static final String MODE_VOICE = "voice";   // 마이크 오른쪽 음파(음성 대화 모드) 버튼
-    static final String MODE_SEARCH = "search"; // '지식' 대화에서 음파 버튼(딕셔너리)
+    static final String MODE_SEARCH = "search"; // '지식' 대화에서 음파 버튼(지식백과)
 
     static volatile ClaudeAutomationService instance;
 
